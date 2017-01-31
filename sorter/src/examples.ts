@@ -1,4 +1,9 @@
+if (this.hasOwnProperty("window")){
+  this.require = new Function("return this")
+}
+
 import { sortTickets, shaffle } from "./api"
+
 
 function printPath(path) {
   for(let i = 0; i < path.length; i++){
