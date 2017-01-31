@@ -8,6 +8,6 @@
         "outDir": "js"
     },
     "exclude": [
-        "src-test"
+        "src-test/"
     ]
 }
