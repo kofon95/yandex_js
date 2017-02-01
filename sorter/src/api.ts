@@ -149,42 +149,45 @@ export function randInt(a: number, b: number): number {
 export abstract class DataTicket implements ITicket{
   abstract from: string
   abstract to: string
-  abstract data: {
-    by:string,
-    prefix:string,
-    postfix:string,
-    extraSentences:any[],
+  abstract data?: {
+    by?:any,
+    prefix?:string,
+    postfix?:string,
+    extraSentences?:any[],
   }
 }
 
 // Builders
 
 export interface IRouteBuilder{
-  trips: any[]
-  build(): IRouteBuilder
+  build(route:ITicket[]): string[]
 }
 
-export class RouteBuilder implements IRouteBuilder{
-  trips: string[]
-  private _route: DataTicket[]
-  constructor(route: DataTicket[]){
-    this._route = route
-  }
-  build(): this{
-    let viewLen = RouteBuilder._views.length
-    this.trips = []
-    for (let i = 0; i < this._route.length; i++) {
-      let ticket = RouteBuilder._safeTicket(this._route[i])
-      this.trips[i] = RouteBuilder._views[randInt(0, viewLen)](ticket)
+export class DataRouteBuilder implements IRouteBuilder{
+  build(route: DataTicket[]){
+    let viewLen = DataRouteBuilder._views.length
+    let trips:string[] = []
+    for (let i = 0; i < route.length; i++) {
+      let ticket = DataRouteBuilder._safeTicket(route[i])
+      let view = DataRouteBuilder._views[randInt(0, viewLen)]  // random view
+      trips[i] = ticket.data.prefix + view(ticket) + ticket.data.postfix
     }
-    return this
+    return trips
   }
 
   // список функций, формирующих предложения поездки от i до i+1
   private static _views: ((ticket: DataTicket) => string)[] = [
     function(t: DataTicket){
-      return RouteBuilder._makeSentences([`from ${t.from} `, `to ${t.to}`, t.data.by ? `, by ${t.data.by}` : ""]).join("") +
-             RouteBuilder._makeSentences(t.data.extraSentences).join(" ")
+      return `From ${t.from} to ${t.to}` + (t.data.by ? ` by ${t.data.by}. ` : ". ") +
+             DataRouteBuilder._makeSentences(t.data.extraSentences).join(" ")
+    },
+    function(t: DataTicket){
+      return `From ${t.from}${t.data.by ? `, take ${t.data.by} ` : " "}to ${t.to}. ` +
+             DataRouteBuilder._makeSentences(t.data.extraSentences).join(" ")
+    },
+    function(t: DataTicket){
+      return (t.data.by ? `Take ${t.data.by} f` : "F") + `rom ${t.from} to ${t.to}. ` +
+             DataRouteBuilder._makeSentences(t.data.extraSentences).join(" ")
     },
   ]
 
@@ -207,7 +210,7 @@ export class RouteBuilder implements IRouteBuilder{
   // ["info 1", "info 2.", "go here;", "go there"] =>
   // ["Info 1.", "Info 2.", "Go here;", "go there."]
   private static _makeSentences(strings:any[]):string[]{
-    let self = RouteBuilder  // just alias
+    let self = DataRouteBuilder  // just alias
     let sentences = Array<string>(strings.length)
     let lastWasWithSemicolon = false
     for (let i = 0; i < strings.length; i++) {

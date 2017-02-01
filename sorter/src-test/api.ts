@@ -1,4 +1,4 @@
-import { sortTickets, shaffle, RouteBuilder } from '../src/api';
+import { sortTickets, shaffle, DataRouteBuilder } from '../src/api';
 
 var TestError = (function(){
   return function(message?:string){
@@ -39,14 +39,14 @@ export class Tester{
     if (!ok) throw TestError()
   }
 
-  static RouteBuilder_buildAndResult(){
+  static DataRouteBuilder_buildAndResult(){
     let expected:any[] = [
       { from: "A", to: "B", data: {by: "Car"} },
       { from: "B", to: "C", data: {by: "Train"} },
       { from: "C", to: "D", data: {by: "Plane"} },
       { from: "D", to: "E", data: {by: "Bus"} },
     ];
-    let trips = new RouteBuilder(expected).build().trips
+    let trips = new DataRouteBuilder().build(expected)
 
     for (var i = 0; i < trips.length; i++) {
       if (trips[i].indexOf(expected[i].from) < 0 ||
@@ -58,11 +58,11 @@ export class Tester{
     }
   }
 
-  private static RouteBuilder__makeSentences(){
+  private static DataRouteBuilder__makeSentences(){
     let prepared = ["info 1", "info 2.", "go here;", "go there", "happyness!"]
     let expected = ["Info 1.", "Info 2.", "Go here;", "go there.", "Happyness!"]
 
-    let result = RouteBuilder["_makeSentences"](prepared)
+    let result = DataRouteBuilder["_makeSentences"](prepared)
     
     for (let i = 0; i < expected.length; i++){
       if (expected[i] !== result[i])
@@ -74,8 +74,8 @@ export class Tester{
     console.log("All tests get started")
     Tester.sortTickets_bigArray()
     Tester.shaffle()
-    Tester.RouteBuilder_buildAndResult()
-    Tester.RouteBuilder__makeSentences()
+    Tester.DataRouteBuilder__makeSentences()
+    Tester.DataRouteBuilder_buildAndResult()
     console.log("ok")
   }
 }
