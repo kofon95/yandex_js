@@ -1,62 +1,132 @@
-if (this.hasOwnProperty("window") && !window.hasOwnProperty("exports")){
-  window["exports"] = {}
+if (typeof window !== "undefined" && !this.hasOwnProperty("exports")){
+  this.exports = this;
+}
+
+
+declare class Map<TKey, TValue>{
+  get(key:TKey): TValue
+  set(key:TKey, value:TValue):this
+  has(key:TKey):boolean
+  entries(): { next:() => {value:[TKey, TValue], done:boolean} }
 }
 
 /**
  * Ticket
  */
-export declare interface Ticket {
+export declare interface ITicket {
   from: string
   to: string
-  data: any
 }
 
-export function sortTickets(path:Ticket[]):Ticket[] {
-  // IDistionary<string, [string, number]>
-  // or
-  // IDistionary<typeof(Ticket.from), [typeof(Ticket.from), number]> // number - index of array
-  let dest = {}
+// Функция сортировки
+export var sortTickets: (tickets:ITicket[]) => ITicket[];
 
-  // IDistionary<string, number>
-  let used = {}
+if (typeof Map !== "undefined"){
+  // Используется словарь Map
+  sortTickets = function(tickets) {
+    // TKey - from
+    // TValue[0] - to
+    // TValue[1] - index of ticket
+    let dest = new Map<string, [string, number]>()
 
-  // build
-  for (let i = 0; i < path.length; i++) {
-    // ребро инцидентно from и to 
-    let from = path[i].from, to = path[i].to
-    dest[from] = [to, i]
+    // хранит "1" для первой и последней вершин,
+    // для остальных "2"
+    let used = new Map<string, number>()
 
-    if (!used.hasOwnProperty(from))
-      used[from] = 1
-    else
-      used[from]++
 
-    if (!used.hasOwnProperty(to))
-      used[to] = 1
-    else
-      used[to]++
+    // build
+    for (let i = 0; i < tickets.length; i++) {
+      let from = tickets[i].from
+      let to   = tickets[i].to
+      dest.set(from, [to, i])
+
+      if (used.has(from))
+        used.set(from, 2)
+      else
+        used.set(from, 1)
+      if (used.has(to))
+        used.set(to, 2)
+      else
+        used.set(to, 1)
+    }
+
+    // find start
+    let from: string
+    let it = used.entries()
+    while (true) {
+      let next = it.next()
+      if (next.value[1] === 1 && dest.has(next.value[0])){
+        from = next.value[0]
+        break
+      }
+    }
+
+    // здесь from - вершина, на которую не указывает не одно ребро
+    // (точка отправления)
+    
+    let result:ITicket[] = []
+    // пока можно идти из from в to:
+    //    идём
+    //    сохраняем результат
+    //    ставим метку from на место to
+    while (dest.has(from)) {
+      let edge = dest.get(from)
+      result.push(tickets[edge[1]])
+      from = edge[0]
+    }
+    return result
   }
+} else {
+  // Используется объект в качестве словаря
+  sortTickets = function(tickets) {
+    // IDistionary<string, [string, number]>
+    // or
+    // IDistionary<typeof(Ticket.from), [typeof(Ticket.from), number]> // number - index of array
+    let dest = {}
 
-  // find start
-  for (var from in used) {
-    // dest don't has only the last vertex
-    if (used[from] === 1 && dest.hasOwnProperty(from))
-      break
+    // IDistionary<string, number>
+    let used = {}
+
+    // build
+    for (let i = 0; i < tickets.length; i++) {
+      // ребро инцидентно from и to 
+      let from = tickets[i].from, to = tickets[i].to
+      dest[from] = [to, i]
+
+      if (used.hasOwnProperty(from))
+        used[from]++
+      else
+        used[from] = 1
+
+      if (used.hasOwnProperty(to))
+        used[to]++
+      else
+        used[to] = 1
+    }
+
+    // find start
+    for (var from in used) {
+      // only the last vertex doesn't have a destination
+      if (used[from] === 1 && dest.hasOwnProperty(from))
+        break
+    }
+
+    // здесь from - точка отправления
+    
+    // build result
+    let result = []
+    while (true){
+      let edge:[string, number] = dest[from]
+      if (!edge) break
+      result.push(tickets[edge[1]])
+      from = edge[0]
+    }
+    return result
   }
-  
-  // build result
-  let result = []
-  while (true){
-    let edge:[string, number] = dest[from]
-    if (!edge) break
-    result.push(path[edge[1]])
-    from = edge[0]
-  }
-  return result
 }
 
 // method doesn't make copy
-export function shaffle<T>(array: any[]): T[] {
+export function shaffle<T>(array: T[]): T[] {
   for (let i = 0; i < array.length-1; i++) {
     let j = randInt(i+1, array.length);
     // swap (i,j)
@@ -68,6 +138,108 @@ export function shaffle<T>(array: any[]): T[] {
 }
 
 
-function randInt(a: number, b: number): number {
+export function randInt(a: number, b: number): number {
   return Math.floor(Math.random() * (b-a) + a);
+}
+
+// ---------------------------------------------
+// ---------------------------------------------
+// ---------------------------------------------
+
+export abstract class DataTicket implements ITicket{
+  abstract from: string
+  abstract to: string
+  abstract data: {
+    by:string,
+    prefix:string,
+    postfix:string,
+    extraSentences:any[],
+  }
+}
+
+// Builders
+
+export interface IRouteBuilder{
+  trips: any[]
+  build(): IRouteBuilder
+}
+
+export class RouteBuilder implements IRouteBuilder{
+  trips: string[]
+  private _route: DataTicket[]
+  constructor(route: DataTicket[]){
+    this._route = route
+  }
+  build(): this{
+    let viewLen = RouteBuilder._views.length
+    this.trips = []
+    for (let i = 0; i < this._route.length; i++) {
+      let ticket = RouteBuilder._safeTicket(this._route[i])
+      this.trips[i] = RouteBuilder._views[randInt(0, viewLen)](ticket)
+    }
+    return this
+  }
+
+  // список функций, формирующих предложения поездки от i до i+1
+  private static _views: ((ticket: DataTicket) => string)[] = [
+    function(t: DataTicket){
+      return RouteBuilder._makeSentences([`from ${t.from} `, `to ${t.to}`, t.data.by ? `, by ${t.data.by}` : ""]).join("") +
+             RouteBuilder._makeSentences(t.data.extraSentences).join(" ")
+    },
+  ]
+
+  private static _safeTicket(ticket:DataTicket):DataTicket{
+    if (ticket.data == null){
+      ticket.data = {by:null, extraSentences:[], prefix:"", postfix:""}
+    } else {
+      let d = ticket.data
+      if (d.prefix == null) d.prefix = ""
+      if (d.postfix == null) d.postfix = ""
+      if (d.extraSentences == null) d.extraSentences = []
+    }
+    return ticket;
+  }
+
+  // Делает из каждой строки предложение:
+  // в случае отсутствия точки или точкизапятой,
+  // с большой буквы и с точкой на конце;
+  // иначе оставляет как есть
+  // ["info 1", "info 2.", "go here;", "go there"] =>
+  // ["Info 1.", "Info 2.", "Go here;", "go there."]
+  private static _makeSentences(strings:any[]):string[]{
+    let self = RouteBuilder  // just alias
+    let sentences = Array<string>(strings.length)
+    let lastWasWithSemicolon = false
+    for (let i = 0; i < strings.length; i++) {
+      let s = self._toString(strings[i]).trim()
+      if (s.length === 0) continue
+
+      if (!lastWasWithSemicolon)
+        s = self._toCapitalize(s)
+
+      let lastLetter = s[s.length-1]
+      if (lastLetter === ";")
+        lastWasWithSemicolon = true  // already current
+      else {
+        if (".?!".indexOf(lastLetter) < 0)
+          s += "."   // if string isn't empty and without period at the end, then put it (dot)
+        lastWasWithSemicolon = false
+      }
+      sentences[i] = s
+    }
+    return sentences
+  }
+
+  private static _toCapitalize(s:string):string{
+    if (s.length > 0){
+      let lr = s[0].toUpperCase()
+      if (lr !== s[0])
+        s = lr + s.substr(1)
+    }
+    return s
+  }
+
+  private static _toString(s): string{
+    return s == null ? "" : s.toString()
+  }
 }
