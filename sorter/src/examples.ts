@@ -33,6 +33,6 @@ var tickets:SorterApi.DataTicket[] = [
 
 SorterApi.shaffle(tickets)
 tickets = SorterApi.sortTickets(tickets)
-let builder = new SorterApi.DataRouteBuilder()
+let builder = new SorterApi.DataRouteBuilder(false)
 
 printRoute(tickets, builder)

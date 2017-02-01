@@ -164,30 +164,35 @@ export interface IRouteBuilder{
 }
 
 export class DataRouteBuilder implements IRouteBuilder{
+
+  constructor(capitalize:boolean = true){
+    if (!capitalize) this._toCapitalize = function(s){return s}
+  }
+
   build(route: DataTicket[]){
     let viewLen = DataRouteBuilder._views.length
     let trips:string[] = []
     for (let i = 0; i < route.length; i++) {
       let ticket = DataRouteBuilder._safeTicket(route[i])
       let view = DataRouteBuilder._views[randInt(0, viewLen)]  // random view
-      trips[i] = ticket.data.prefix + view(ticket) + ticket.data.postfix
+      trips[i] = ticket.data.prefix + view(ticket, this) + ticket.data.postfix
     }
     return trips
   }
 
   // список функций, формирующих предложения поездки от i до i+1
-  private static _views: ((ticket: DataTicket) => string)[] = [
-    function(t: DataTicket){
+  private static _views: ((ticket: DataTicket, self:DataRouteBuilder) => string)[] = [
+    function(t, self){
       return `From ${t.from} to ${t.to}` + (t.data.by ? ` by ${t.data.by}. ` : ". ") +
-             DataRouteBuilder._makeSentences(t.data.extraSentences).join(" ")
+             self._makeSentences(t.data.extraSentences, self).join(" ")
     },
-    function(t: DataTicket){
+    function(t, self){
       return `From ${t.from}${t.data.by ? `, take ${t.data.by} ` : " "}to ${t.to}. ` +
-             DataRouteBuilder._makeSentences(t.data.extraSentences).join(" ")
+             self._makeSentences(t.data.extraSentences, self).join(" ")
     },
-    function(t: DataTicket){
+    function(t, self){
       return (t.data.by ? `Take ${t.data.by} f` : "F") + `rom ${t.from} to ${t.to}. ` +
-             DataRouteBuilder._makeSentences(t.data.extraSentences).join(" ")
+             self._makeSentences(t.data.extraSentences, self).join(" ")
     },
   ]
 
@@ -204,17 +209,15 @@ export class DataRouteBuilder implements IRouteBuilder{
   }
 
   // Формирует из каждой строки предложение:
-  // в случае отсутствия точки или точки с запятой на конце, добавляет точку;
-  // возводит первую букву в верхний регистр в соответствии с правилами языка.
-  // Пример:
+  // в случае отсутствия точки или точки с запятой, добавляет точку;
+  // 
   // ["info 1", "info 2.", "go here;", "go there"] =>
   // ["Info 1.", "Info 2.", "Go here;", "go there."]
-  private static _makeSentences(strings:any[]):string[]{
-    let self = DataRouteBuilder  // just alias
+  private _makeSentences(strings:any[], self: DataRouteBuilder):string[]{
     let sentences = Array<string>(strings.length)
     let lastWasWithSemicolon = false
     for (let i = 0; i < strings.length; i++) {
-      let s = self._toString(strings[i]).trim()
+      let s = DataRouteBuilder._toString(strings[i]).trim()
       if (s.length === 0) continue
 
       if (!lastWasWithSemicolon)
@@ -233,7 +236,7 @@ export class DataRouteBuilder implements IRouteBuilder{
     return sentences
   }
 
-  private static _toCapitalize(s:string):string{
+  private _toCapitalize(s:string):string{
     if (s.length > 0){
       let lr = s[0].toUpperCase()
       if (lr !== s[0])
