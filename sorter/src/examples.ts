@@ -1,17 +1,19 @@
-if (typeof window){
+if (typeof window !== "undefined"){
   this.require = new Function("return this")
 }
-// Подключение api
 import SorterApi = require("./api")
 
 
 // Функция вывода в консоль
-function printRoute(route:SorterApi.ITicket[], builder: SorterApi.IRouteBuilder) {
-    let trips = builder.build(route)
-    console.log(trips.join("\n"))
+function printRoute(tickets:SorterApi.ITicket[], builder: SorterApi.IRouteBuilder) {
+  let route = SorterApi.sortTickets(tickets)    // сортировка
+  let trips = builder.build(route)              // конструирование предложений
+  console.log(trips.join("\n"))                 // вывод
 }
 
+
 // Список билетов
+
 // var tickets:SorterApi.DataTicket[] = [
 //   { from: "A", to: "B", data: {by: 1} },
 //   { from: "B", to: "C", data: {by: 2} },
@@ -32,7 +34,7 @@ var tickets:SorterApi.DataTicket[] = [
 // ----------------
 
 SorterApi.shaffle(tickets)
-tickets = SorterApi.sortTickets(tickets)
-let builder = new SorterApi.DataRouteBuilder()
+var builder = new SorterApi.DataRouteBuilder()
+
 
 printRoute(tickets, builder)
