@@ -1,21 +1,37 @@
 (function() {
 
+  /**
+   * Pushes in "result" found elements
+   * @param {HTMLElement|string} [querySelector]
+   * @param {HTMLElement} [dom]
+   * @param {HTMLElement[]=} [result]
+   * @returns {HTMLElement[]} Taken parameter "result"
+   */
+  function convertElements(querySelector, dom, result){
+    if (!result) result = [];
+
+    var iter = dom.querySelectorAll(querySelector);
+    iter.forEach(function(elem){ result.push(elem); });
+
+    return result;
+  }
+
   function select(stringOrArrayOrElement, dom){
     var items;
     
     if (isElement(stringOrArrayOrElement))
       items = [stringOrArrayOrElement];
-    else if (typeof stringOrArrayOrElement === "string")
-      items = toElementsInResult(stringOrArrayOrElement, dom);
-    else if (stringOrArrayOrElement instanceof String)
-      items = toElementsInResult(stringOrArrayOrElement.toString(), dom);
+    else if (typeof stringOrArrayOrElement === "string" || stringOrArrayOrElement instanceof String)
+      items = convertElements(stringOrArrayOrElement, dom);
     else if (Array.isArray(stringOrArrayOrElement)){
       var t = [];
       stringOrArrayOrElement.forEach(function(it){
         if (isElement(it))
           t.push(it);
+        else if (typeof it === "string" || it instanceof String)
+          convertElements(it, dom, t);
         else
-          toElementsInResult(it, dom, t);
+          throw TypeError("Argument, which's the array, has unknown element: " + it);
       });
       items = t;
     }
@@ -23,6 +39,12 @@
       throw TypeError("Wrong argument taken: " + stringOrArrayOrElement);
 
     return items;
+  }
+
+  function selectAny(stringOrArrayOrElementOrSelf, dom){
+    if (stringOrArrayOrElementOrSelf instanceof framework)
+      return stringOrArrayOrElementOrSelf._items;
+    return select(stringOrArrayOrElementOrSelf, dom);
   }
 
   function getAncestryPosition(elem, dom){
@@ -73,7 +95,7 @@
   }
   
   var framework = function(stringOrArrayOrElement, dom) {
-    var items = select(stringOrArrayOrElement, dom);
+    var items = stringOrArrayOrElement ? select(stringOrArrayOrElement, dom) : [];
     this._dom = dom;
     this._items = items;
     this.refine();
@@ -86,24 +108,6 @@
     this._depthsForEveryItem = sorted[1];
     return this;
   };
-
-  /**
-   * Pushes in "result" found elements
-   * @param {HTMLElement|string} [item]
-   * @param {HTMLElement} [dom]
-   * @param {HTMLElement[]=} [result]
-   * @returns {HTMLElement[]} Taken parameter "result"
-   */
-  function toElementsInResult(item, dom, result){
-    if (!result) result = [];
-
-    if (!isElement(item)){
-      var iter = dom.querySelectorAll(item);
-      iter.forEach(function(elem){ result.push(elem); });
-    }
-
-    return result;
-  }
 
   var _main = function(stringOrArrayOrElementOrSelf, dom){
     if (stringOrArrayOrElementOrSelf instanceof framework) return stringOrArrayOrElementOrSelf;
@@ -139,33 +143,87 @@
     return false;
   }
 
-  // O(n*log(n))
-  framework.prototype.union = function(any){
-    items = select(any, this._dom).concat(this._items);
+  // O(n)
+  framework.prototype.combines = function(any){
+    items = selectAny(any, this._dom).concat(this._items);
     return new framework(items, this._dom);
   };
 
-  framework.prototype.exclude = function(any){
-    throw Error("not implement")
+  // O(n^m)  // todo: reduce complexity. Calc the depths for both...
+  framework.prototype.excludes = function(any){
+    var items = selectAny(any, this._dom);
+    var isSubtracts = Array(this._items.length).fill(false);
+    for (var i = 0; i < this._items.length; i++) {
+      for (var j = 0; j < items.length; j++) {
+        if (this._items[i] === items[j]){
+          isSubtracts[i] = true;
+        }
+      }
+    }
+
+    var result = [];
+    for (var i = 0; i < this._items.length; i++) {
+      if (!isSubtracts[i])
+        result.push(this._items[i]);
+    }
+    return new framework(result, this._dom);
+  }
+
+  framework.prototype.intersects = function(any){
+    var items = selectAny(any, this._dom);
+    var isSubtracts = Array(this._items.length).fill(false);
+    for (var i = 0; i < this._items.length; i++) {
+      for (var j = 0; j < items.length; j++) {
+        if (this._items[i] === items[j]){
+          isSubtracts[i] = true;
+        }
+      }
+    }
+
+    var result = [];
+    for (var i = 0; i < this._items.length; i++) {
+      if (isSubtracts[i])
+        result.push(this._items[i]);
+    }
+    return new framework(result, this._dom);
   }
 
 
   framework.prototype.clone = function(){
     return new framework(this._items.slice(), this._dom);
   }
-  framework.prototype.slice = function(){
+  framework.prototype.toArray = function(){
     return this._items.slice.apply(this._items, arguments);
+  }
+  framework.prototype.first = function(){
+    if (this._items.length === 0) throw Error("Empty!");
+    return this._items[0];
   }
   framework.prototype.item = function(index){
     return this._items[index];
   }
-  framework.prototype.getIterator = function(){
-    return this[Symbol.iterator];
+  framework.prototype[Symbol.iterator] = function(){
+    return this._items[Symbol.iterator]();
   }
+  framework.prototype.forEach = function(callback){
+    var items = this.toArray();
+    for (var i = 0; i < items.length; i++)
+      callback(items[i], i, items);
+  };
+  Object.defineProperty(framework.prototype, "context", {
+    get: function(){ return this._dom; }
+  });
+  Object.defineProperty(framework.prototype, "length", {
+    get: function(){
+      return this._items.length;
+    }
+  });
 
 
   _main.onReady = function(elem, callback){
-    if (elem instanceof Document){
+    if (document.readyState !== "complete"){
+      elem = window;
+    } else if (elem instanceof Document){
       if (elem.readyState === "complete" || elem.children.length === 0){
         callback(null);
         return;
@@ -178,7 +236,7 @@
   };
   _main.select = function(selector, context){
     if (!context) context = document;
-    return select(selector, context);
+    return selectAny(selector, context);
   };
   
   function isElement(elem) { return elem instanceof HTMLElement; }
@@ -192,7 +250,10 @@
 
 
 
+  _main.extensions = framework.prototype;
 
   // initializing
+  if (window.bicycle)
+    console.warn("bicycle was changed");
   window.bicycle = _main;
 })();

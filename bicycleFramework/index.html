@@ -3,12 +3,35 @@
 <head>
   <meta charset="UTF-8">
   <title>Document</title>
+  <!--Ядро-->
   <script src="js/bicycle.core.js"></script>
+  <!--Базовые (основные) функции-->
+  <script src="js/bicycle.base.js"></script>
+  <!--Кастомные лагины-->
+  <script src="js/bicycle.scroll.js"></script>
+  <script src="js/bicycle.draggable.js"></script>
+  <!--Примеры-->
+  <script src="js/examples.js"></script>
 </head>
 <body style="background-color: #444;color: #ccc;">
-  <div id="qwe">div 1</div>
-  <div class="ww2">div 2</div>
-  <p>paragraph 3</p>
-  <script src="js/examples.js"></script>
+  <ul id="some-list"></ul>
+  <script>
+    // adds <li></li>
+    (function(){
+      let ul = bicycle("#some-list");
+      let lis = Array(10);
+      for (let i = 0; i < lis.length; i++)
+        lis[i] = "<li>Value " + (i+1) + "</li>";
+      ul.html(lis.join(""));
+    })();
+  </script>
+  <div>
+    <button id="button-with-text-which-is-to-be-changed" style="padding: 10px;">Change this text</button>
+    <input id="input-with-value-which-is-to-be-changed" type="button" value="And change this one" style="padding: 10px;">
+  </div>
+  <p>click below</p>
+  <div class="test-rectangle" style="background-color: white; height: 200px; width: 300px; user-select: none;"></div>
+  <p>Draggable</p>
+  <div class="draggable" style="background-color: green; height: 100px; width: 100px; user-select: none;"></div>
 </body>
 </html>
