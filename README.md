@@ -1,7 +1,7 @@
 Yandex's task
 =============
 
-[Тестовое задание_javascript.doc](Тестовое задание_javascript.doc)
+[Тестовое задание_javascript.doc](Тестовое%20задание_javascript.doc)
 
 https://yadi.sk/i/IiGzf4GTqSMf4
 
